@@ -189,6 +189,12 @@ func checkRevisions(args *checkArgs) error {
 	executorArgs = append(executorArgs, "version")
 	cmd := osutil.Command(executorArgs[0], executorArgs[1:]...)
 	cmd.Stderr = ioutil.Discard
+
+	// Return nil because we don't have mean to set sys.GitRevision when using gccgo. In case of gc is is passed using -X in -ldflags
+	if sys.GitRevision == "" {
+		return nil
+	}
+
 	if _, err := cmd.StdinPipe(); err != nil { // for the case executor is wrapped with ssh
 		return err
 	}
