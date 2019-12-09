@@ -60,7 +60,13 @@ GITREVDATE=$(shell git log -n 1 --format="%ad")
 GOFLAGS := "-ldflags=-s -w -X github.com/google/syzkaller/sys.GitRevision=$(REV) -X 'github.com/google/syzkaller/sys.gitRevisionDate=$(GITREVDATE)'"
 
 GOHOSTFLAGS := $(GOFLAGS)
-GOTARGETFLAGS := $(GOFLAGS)
+
+ifeq ("$(USE_GCCGO)", "1")
+	GOTARGETFLAGS := -compiler gccgo -gccgoflags "-static -Wl,-s"
+else
+	GOTARGETFLAGS := $(GOFLAGS)
+endif
+
 ifneq ("$(GOTAGS)", "")
 	GOHOSTFLAGS += "-tags=$(GOTAGS)"
 endif
