@@ -93,7 +93,7 @@ ifeq ("$(TARGETOS)", "trusty")
 endif
 
 .PHONY: all host target \
-	manager runtest fuzzer executor \
+	manager runtest fuzzer executor mips64le-test \
 	ci hub \
 	execprog mutate prog2c trace2syz stress repro upgrade db \
 	bin/syz-sysgen bin/syz-extract bin/syz-fmt \
@@ -359,3 +359,6 @@ check_links:
 # and formatting the code to make sure that everything is committed.
 check_diff:
 	DIFF="$(shell git diff --name-only)"; test -z "$$DIFF"
+
+mips64le-test:
+	GOOS=$(TARGETGOOS) GOARCH=$(TARGETGOARCH) $(GO) build $(GOTARGETFLAGS) -o ./bin/$(TARGETOS)_$(TARGETVMARCH)/mips64le-test$(EXE) github.com/google/syzkaller/mips64le-test
