@@ -669,7 +669,7 @@ func (c *command) handshake() error {
 		read <- nil
 	}()
 	// Sandbox setup can take significant time.
-	timeout := time.NewTimer(time.Minute)
+	timeout := time.NewTimer(4 * time.Minute)
 	select {
 	case err := <-read:
 		timeout.Stop()
@@ -800,8 +800,8 @@ func (c *command) exec(opts *ExecOpts, progData []byte) (output []byte, hanged b
 
 func sanitizeTimeout(config *Config) time.Duration {
 	const (
-		executorTimeout = 5 * time.Second
-		minTimeout      = executorTimeout + 2*time.Second
+		executorTimeout = 120 * time.Second
+		minTimeout      = executorTimeout + 30 * time.Second
 	)
 	timeout := config.Timeout
 	if timeout == 0 {
