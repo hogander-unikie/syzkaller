@@ -477,6 +477,9 @@ func (jp *JobProcessor) bisect(job *Job, mgrcfg *mgrconfig.Config) error {
 			resp.Build.KernelCommitDate = res.Commit.Date
 			resp.Build.KernelCommitTitle = res.Commit.Title
 		}
+		if res.Report.Flaky {
+			resp.Flags |= dashapi.BisectResultIgnore
+		}
 	}
 	return nil
 }

@@ -47,6 +47,8 @@ type Report struct {
 	SkipPos int
 	// Suppressed indicates whether the report should not be reported to user.
 	Suppressed bool
+	// Bug is flaky and it's bisection result should not be reported via email.
+	Flaky bool
 	// Corrupted indicates whether the report is truncated of corrupted in some other way.
 	Corrupted bool
 	// CorruptedReason contains reason why the report is marked as corrupted.

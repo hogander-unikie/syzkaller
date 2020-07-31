@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/google/syzkaller/pkg/build"
@@ -99,6 +100,7 @@ type Result struct {
 	Config     []byte
 	NoopChange bool
 	IsRelease  bool
+	Flaky      bool
 }
 
 // Run does the bisection and returns either the Result,
@@ -157,6 +159,9 @@ func runImpl(cfg *Config, repo vcs.Repo, inst instance.Env) (*Result, error) {
 		env.log("error: %v", err)
 		return nil, err
 	}
+	if res.Flaky {
+		env.log("bisection result marked as flaky")
+	}
 	if len(res.Commits) == 0 {
 		if cfg.Fix {
 			env.log("the crash still happens on HEAD")
@@ -206,6 +211,7 @@ func (env *env) bisect() (*Result, error) {
 
 	env.commit = com
 	env.kernelConfig = cfg.Kernel.Config
+
 	testRes, err := env.test()
 	if err != nil {
 		return nil, err
@@ -260,17 +266,24 @@ func (env *env) bisect() (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return env.processBisectResult(results, commits, bad, good)
+}
+
+func (env *env) processBisectResult(results map[string]*testResult, commits []*vcs.Commit, bad *vcs.Commit,
+	good *vcs.Commit) (*Result, error) {
 	res := &Result{
 		Commits: commits,
 		Config:  env.kernelConfig,
 	}
+
 	if len(commits) == 1 {
 		com := commits[0]
-		testRes := results[com.Hash]
-		if testRes == nil {
+		testRes1 := results[com.Hash]
+		if testRes1 == nil {
 			return nil, fmt.Errorf("no result for culprit commit")
 		}
-		res.Report = testRes.rep
+		res.Report = testRes1.rep
 		isRelease, err := env.bisecter.IsRelease(com.Hash)
 		if err != nil {
 			env.log("failed to detect release: %v", err)
@@ -282,7 +295,106 @@ func (env *env) bisect() (*Result, error) {
 		}
 		res.NoopChange = noopChange
 	}
+
+	// Check if any testresult is marked as flaky.
+	var flaky bool
+	for _, res := range results {
+		if res.rep != nil && res.rep.Flaky {
+			flaky = true
+		}
+	}
+
+	// Check if flaky testresult caused bisection failure. In case of consistent bisection result
+	// consider result being non flaky.
+	if flaky {
+		bisectOk, err := env.verifyBisectResult(commits, bad, good)
+		if err != nil {
+			env.log("failed to verify bisect result: %v", err)
+		}
+		res.Flaky = !bisectOk
+	}
+
 	return res, nil
+}
+
+func (env *env) verifyBisectResult(commits []*vcs.Commit, bad *vcs.Commit, good *vcs.Commit) (bool, error) {
+	if len(commits) == 1 {
+		return env.verifyConclusiveBisectResult(commits[0].Hash)
+	}
+	return env.verifyInConclusiveBisectResult(commits, bad, good)
+}
+
+func (env *env) verifyInConclusiveBisectResult(commits []*vcs.Commit, bad *vcs.Commit, good *vcs.Commit) (bool, error) {
+	cfg := env.cfg
+	pred := func() (vcs.BisectResult, error) {
+		testRes, err := env.test()
+		if err != nil {
+			return 0, err
+		}
+		if cfg.Fix {
+			if testRes.verdict == vcs.BisectBad {
+				testRes.verdict = vcs.BisectGood
+			} else if testRes.verdict == vcs.BisectGood {
+				testRes.verdict = vcs.BisectBad
+			}
+		}
+		return testRes.verdict, err
+	}
+	commits1, err := env.bisecter.Bisect(bad.Hash, good.Hash, cfg.Trace, pred)
+	if err != nil {
+		env.log("failed to verify bisect result: %v", err)
+		return false, err
+	}
+	return reflect.DeepEqual(commits, commits1), nil
+}
+
+func (env *env) verifyConclusiveBisectResult(commit string) (bool, error) {
+	cfg := env.cfg
+	// Check if crash reproduces(fix)/doesn't(cause) with parent commit.
+	com, err := env.repo.CheckoutCommit(cfg.Kernel.Repo, commit+"^")
+	if err != nil {
+		return false, err
+	}
+
+	env.commit = com
+	env.kernelConfig = cfg.Kernel.Config
+
+	var expectedVerdict vcs.BisectResult
+	if cfg.Fix {
+		expectedVerdict = vcs.BisectBad
+	} else {
+		expectedVerdict = vcs.BisectGood
+	}
+
+	testRes, err := env.test()
+	if err != nil {
+		return false, err
+	} else if testRes.verdict != expectedVerdict {
+		return false, nil
+	}
+
+	// Check crash doesn't reproduce(fix)/reproduces(cause) with bisected commit.
+	com, err = env.repo.CheckoutCommit(cfg.Kernel.Repo, commit)
+	if err != nil {
+		return false, err
+	}
+
+	env.commit = com
+	env.kernelConfig = cfg.Kernel.Config
+
+	if cfg.Fix {
+		expectedVerdict = vcs.BisectGood
+	} else {
+		expectedVerdict = vcs.BisectBad
+	}
+
+	testRes, err = env.test()
+	if err != nil {
+		return false, err
+	} else if testRes.verdict != expectedVerdict {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (env *env) minimizeConfig() (*testResult, error) {
@@ -500,6 +612,7 @@ func (env *env) test() (*testResult, error) {
 	} else if good != 0 {
 		res.verdict = vcs.BisectGood
 	}
+
 	return res, nil
 }
 
@@ -545,6 +658,11 @@ func (env *env) processResults(current *vcs.Commit, results []error) (bad, good 
 	} else {
 		for i, verdict := range verdicts {
 			env.log("run #%v: %v", i, verdict)
+		}
+		if rep != nil {
+			// We reproduced several crashes that have different output or some of the runs were ok.
+			// Let's mark it as "Flaky"
+			rep.Flaky = true
 		}
 	}
 	return

@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/syzkaller/pkg/hash"
@@ -56,6 +57,15 @@ func (env *testEnv) Test(numVMs int, reproSyz, reproOpts, reproC []byte) ([]erro
 	if (env.config == "baseline-repro" || env.config == "new-minimized-config" || env.config == "original config") &&
 		(!env.test.fix && commit >= env.test.culprit || env.test.fix &&
 			commit < env.test.culprit) {
+		if env.test.flaky {
+			errors := crashErrors(numVMs-1, "crash occurs")
+			errors = append(errors, &instance.CrashError{
+				Report: &report.Report{
+					Title: fmt.Sprintf("crashes at %v", "another crash occurs"),
+				},
+			})
+			return errors, nil
+		}
 		return crashErrors(numVMs, "crash occurs"), nil
 	}
 
@@ -67,9 +77,15 @@ func (env *testEnv) headCommit() int {
 	if err != nil {
 		env.t.Fatal(err)
 	}
-	commit, err := strconv.ParseUint(com.Title, 10, 64)
+	var Title string
+	if strings.HasPrefix(com.Title, "syz-bisect-test") {
+		Title = string(com.Title[len(com.Title)-1])
+	} else {
+		Title = com.Title
+	}
+	commit, err := strconv.ParseUint(Title, 10, 64)
 	if err != nil {
-		env.t.Fatalf("invalid commit title: %v", com.Title)
+		env.t.Fatalf("invalid commit title: %v", Title)
 	}
 	return int(commit)
 }
@@ -157,6 +173,8 @@ type BisectionTest struct {
 	expectRep    bool
 	noopChange   bool
 	isRelease    bool
+	flaky        bool
+	expectFlaky  bool
 	commitLen    int
 	oldestLatest int
 	// input and output
@@ -174,12 +192,33 @@ var bisectionTests = []BisectionTest{
 		expectRep:   true,
 		culprit:     602,
 	},
+	// Tests that bisection returns the correct cause commit.
+	{
+		name:        "cause-finds-cause-flaky",
+		startCommit: 905,
+		commitLen:   1,
+		expectRep:   true,
+		flaky:       true,
+		expectFlaky: false,
+		culprit:     602,
+	},
 	// Test bisection returns correct cause with different baseline/config combinations.
 	{
 		name:            "cause-finds-cause-baseline-repro",
 		startCommit:     905,
 		commitLen:       1,
 		expectRep:       true,
+		culprit:         602,
+		baselineConfig:  "baseline-repro",
+		resultingConfig: "baseline-repro",
+	},
+	{
+		name:            "cause-finds-cause-baseline-repro-flaky",
+		startCommit:     905,
+		commitLen:       1,
+		expectRep:       true,
+		flaky:           true,
+		expectFlaky:     false,
 		culprit:         602,
 		baselineConfig:  "baseline-repro",
 		resultingConfig: "baseline-repro",
@@ -225,6 +264,17 @@ var bisectionTests = []BisectionTest{
 		startCommit:     905,
 		commitLen:       1,
 		expectRep:       true,
+		culprit:         602,
+		baselineConfig:  "minimize-succeeds",
+		resultingConfig: "new-minimized-config",
+	},
+	{
+		name:            "cause-finds-cause-minimize-succeeds-flaky",
+		startCommit:     905,
+		commitLen:       1,
+		expectRep:       true,
+		flaky:           true,
+		expectFlaky:     false,
 		culprit:         602,
 		baselineConfig:  "minimize-succeeds",
 		resultingConfig: "new-minimized-config",
@@ -463,6 +513,9 @@ func TestBisectionResults(t *testing.T) {
 				}
 				if res.IsRelease != test.isRelease {
 					t.Fatalf("got release change: %v, want: %v", res.IsRelease, test.isRelease)
+				}
+				if res.Flaky != test.expectFlaky {
+					t.Fatalf("got flaky status: %v, want: %v", res.Flaky, test.flaky)
 				}
 				if test.oldestLatest != 0 && fmt.Sprint(test.oldestLatest) != res.Commit.Title ||
 					test.oldestLatest == 0 && res.Commit != nil {
