@@ -659,11 +659,11 @@ func (env *env) processResults(current *vcs.Commit, results []error) (bad, good 
 		for i, verdict := range verdicts {
 			env.log("run #%v: %v", i, verdict)
 		}
-		if rep != nil {
+		//if rep != nil {
 			// We reproduced several crashes that have different output or some of the runs were ok.
 			// Let's mark it as "Flaky"
-			rep.Flaky = true
-		}
+		//	rep.Flaky = true
+		//}
 	}
 	return
 }
