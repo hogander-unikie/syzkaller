@@ -61,25 +61,27 @@ type ReproConfig struct {
 }
 
 type env struct {
-	cfg          *Config
-	repo         vcs.Repo
-	bisecter     vcs.Bisecter
-	minimizer    vcs.ConfigMinimizer
-	commit       *vcs.Commit
-	head         *vcs.Commit
-	kernelConfig []byte
-	inst         instance.Env
-	numTests     int
-	startTime    time.Time
-	buildTime    time.Duration
-	testTime     time.Duration
+	cfg               *Config
+	repo              vcs.Repo
+	bisecter          vcs.Bisecter
+	minimizer         vcs.ConfigMinimizer
+	commit            *vcs.Commit
+	head              *vcs.Commit
+	kernelConfig      []byte
+	inst              instance.Env
+	numTests          int
+	startTime         time.Time
+	buildTime         time.Duration
+	testTime          time.Duration
+	buildTestResults  map[string]*testResult // by kernelSign
+	commitTestResults map[string]*testResult // by commit
 }
 
 const NumTests = 10 // number of tests we do per commit
 
 // Result describes bisection result:
 //  - if bisection is conclusive, the single cause/fix commit in Commits
-//    - for cause bisection report is the crash on the cause commit
+//    - for cause bisection, report is the crash on the cause commit
 //    - for fix bisection report is nil
 //    - Commit is nil
 //    - NoopChange is set if the commit did not cause any change in the kernel binary
@@ -132,13 +134,15 @@ func runImpl(cfg *Config, repo vcs.Repo, inst instance.Env) (*Result, error) {
 	if !ok && len(cfg.Kernel.BaselineConfig) != 0 {
 		return nil, fmt.Errorf("config minimization is not implemented for %v", cfg.Manager.TargetOS)
 	}
+
 	env := &env{
-		cfg:       cfg,
-		repo:      repo,
-		bisecter:  bisecter,
-		minimizer: minimizer,
-		inst:      inst,
-		startTime: time.Now(),
+		cfg:              cfg,
+		repo:             repo,
+		bisecter:         bisecter,
+		minimizer:        minimizer,
+		inst:             inst,
+		startTime:        time.Now(),
+		buildTestResults: make(map[string]*testResult),
 	}
 	head, err := repo.HeadCommit()
 	if err != nil {
@@ -223,7 +227,9 @@ func (env *env) bisect() (*Result, error) {
 			testRes = testRes1
 		}
 	}
+	env.commitTestResults = map[string]*testResult{cfg.Kernel.Commit: testRes}
 
+	// CONFIG stays firmly fixed after this line
 	bad, good, rep1, results1, err := env.commitRange()
 	if err != nil {
 		return nil, err
@@ -238,9 +244,8 @@ func (env *env) bisect() (*Result, error) {
 		// We return 2 commits which means "inconclusive".
 		return &Result{Commits: []*vcs.Commit{com, bad}, Config: env.kernelConfig}, nil
 	}
-	results := map[string]*testResult{cfg.Kernel.Commit: testRes}
 	for _, res := range results1 {
-		results[res.com.Hash] = res
+		env.commitTestResults[res.com.Hash] = res
 	}
 	pred := func() (vcs.BisectResult, error) {
 		testRes1, err := env.test()
@@ -254,7 +259,9 @@ func (env *env) bisect() (*Result, error) {
 				testRes1.verdict = vcs.BisectBad
 			}
 		}
-		results[testRes1.com.Hash] = testRes1
+		env.commitTestResults[testRes1.com.Hash] = testRes1
+
+		env.log("Setting %v, testRes1.verdict %v", testRes1.com.Hash, testRes1.verdict)
 		return testRes1.verdict, err
 	}
 	commits, err := env.bisecter.Bisect(bad.Hash, good.Hash, cfg.Trace, pred)
@@ -267,7 +274,7 @@ func (env *env) bisect() (*Result, error) {
 	}
 	if len(commits) == 1 {
 		com := commits[0]
-		testRes := results[com.Hash]
+		testRes := env.commitTestResults[com.Hash]
 		if testRes == nil {
 			return nil, fmt.Errorf("no result for culprit commit")
 		}
@@ -277,7 +284,7 @@ func (env *env) bisect() (*Result, error) {
 			env.log("failed to detect release: %v", err)
 		}
 		res.IsRelease = isRelease
-		noopChange, err := env.detectNoopChange(results, com)
+		noopChange, err := env.detectNoopChange(com)
 		if err != nil {
 			env.log("failed to detect noop change: %v", err)
 		}
@@ -336,13 +343,13 @@ func (env *env) minimizeConfig() (*testResult, error) {
 	return testRes, nil
 }
 
-func (env *env) detectNoopChange(results map[string]*testResult, com *vcs.Commit) (bool, error) {
-	testRes := results[com.Hash]
+func (env *env) detectNoopChange(com *vcs.Commit) (bool, error) {
+	testRes := env.commitTestResults[com.Hash]
 	if testRes.kernelSign == "" || len(com.Parents) != 1 {
 		return false, nil
 	}
 	parent := com.Parents[0]
-	parentRes := results[parent]
+	parentRes := env.commitTestResults[parent]
 	if parentRes == nil {
 		env.log("parent commit %v wasn't tested", parent)
 		// We could not test the parent commit if it is not based on the previous release
@@ -482,6 +489,15 @@ func (env *env) test() (*testResult, error) {
 		}
 		return res, nil
 	}
+
+	// Check: did we test this build already?
+	if prevBuildResult, found := env.buildTestResults[kernelSign]; found {
+		env.log("the build with signature '%v' was identified tested before, using previous result", kernelSign)
+		env.commitTestResults[current.Hash] = prevBuildResult
+		return prevBuildResult, nil
+	}
+
+	// This build has never been tested before.
 	testStart := time.Now()
 	results, err := env.inst.Test(NumTests, cfg.Repro.Syz, cfg.Repro.Opts, cfg.Repro.C)
 	env.testTime += time.Since(testStart)
@@ -501,6 +517,9 @@ func (env *env) test() (*testResult, error) {
 	} else if good != 0 {
 		res.verdict = vcs.BisectGood
 	}
+
+	// Keep the test results for this build.
+	env.buildTestResults[kernelSign] = res
 	return res, nil
 }
 
