@@ -493,7 +493,6 @@ func (env *env) test() (*testResult, error) {
 	// Check: did we test this build already?
 	if prevBuildResult, found := env.buildTestResults[kernelSign]; found {
 		env.log("the build with signature '%v' was identified tested before, using previous result", kernelSign)
-		env.commitTestResults[current.Hash] = prevBuildResult
 		return prevBuildResult, nil
 	}
 

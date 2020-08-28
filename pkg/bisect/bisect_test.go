@@ -155,7 +155,6 @@ type BisectionTest struct {
 	// expected output
 	expectErr    bool
 	expectRep    bool
-	noopChange   bool
 	isRelease    bool
 	commitLen    int
 	oldestLatest int
@@ -240,10 +239,9 @@ var bisectionTests = []BisectionTest{
 		startCommit:     905,
 		commitLen:       1,
 		expectRep:       true,
-		culprit:         905,
+		culprit:         904,
 		sameBinaryStart: 904,
 		sameBinaryEnd:   905,
-		noopChange:      true,
 		baselineConfig:  "minimize-succeeds",
 		resultingConfig: "new-minimized-config",
 	},
@@ -324,22 +322,12 @@ var bisectionTests = []BisectionTest{
 		startCommit:     905,
 		commitLen:       1,
 		expectRep:       true,
-		culprit:         503,
+		culprit:         502,
 		sameBinaryStart: 502,
 		sameBinaryEnd:   503,
-		noopChange:      true,
 	},
 	{
 		name:            "cause-same-binary-off-by-one",
-		startCommit:     905,
-		commitLen:       1,
-		expectRep:       true,
-		culprit:         503,
-		sameBinaryStart: 400,
-		sameBinaryEnd:   502,
-	},
-	{
-		name:            "cause-same-binary-off-by-one-2",
 		startCommit:     905,
 		commitLen:       1,
 		expectRep:       true,
@@ -352,51 +340,45 @@ var bisectionTests = []BisectionTest{
 		fix:             true,
 		startCommit:     400,
 		commitLen:       1,
-		culprit:         503,
+		culprit:         502,
 		sameBinaryStart: 502,
 		sameBinaryEnd:   504,
-		noopChange:      true,
 	},
 	{
 		name:            "cause-same-binary-release1",
 		startCommit:     905,
 		commitLen:       1,
 		expectRep:       true,
-		culprit:         500,
+		culprit:         405,
 		sameBinaryStart: 405,
 		sameBinaryEnd:   500,
-		noopChange:      true,
-		isRelease:       true,
 	},
 	{
 		name:            "cause-same-binary-release2",
 		startCommit:     905,
 		commitLen:       1,
 		expectRep:       true,
-		culprit:         501,
+		culprit:         502,
 		sameBinaryStart: 500,
 		sameBinaryEnd:   501,
-		noopChange:      true,
 	},
 	{
 		name:            "cause-same-binary-release3",
 		startCommit:     905,
 		commitLen:       1,
 		expectRep:       true,
-		culprit:         405,
+		culprit:         404,
 		sameBinaryStart: 404,
 		sameBinaryEnd:   405,
-		noopChange:      true,
 	},
 	{
 		name:            "fix-same-binary-last",
 		fix:             true,
 		startCommit:     400,
 		commitLen:       1,
-		culprit:         905,
+		culprit:         904,
 		sameBinaryStart: 904,
 		sameBinaryEnd:   905,
-		noopChange:      true,
 	},
 	{
 		name:        "fix-release",
@@ -409,12 +391,12 @@ var bisectionTests = []BisectionTest{
 	{
 		name:            "cause-not-in-previous-release-issue-1527",
 		startCommit:     905,
-		culprit:         650,
+		culprit:         500,
 		commitLen:       1,
 		expectRep:       true,
 		sameBinaryStart: 500,
 		sameBinaryEnd:   650,
-		noopChange:      true,
+		isRelease:       true,
 	},
 }
 
@@ -457,9 +439,6 @@ func TestBisectionResults(t *testing.T) {
 				}
 				if test.expectRep != (res.Report != nil) {
 					t.Fatalf("got rep: %v, want: %v", res.Report, test.expectRep)
-				}
-				if res.NoopChange != test.noopChange {
-					t.Fatalf("got noop change: %v, want: %v", res.NoopChange, test.noopChange)
 				}
 				if res.IsRelease != test.isRelease {
 					t.Fatalf("got release change: %v, want: %v", res.IsRelease, test.isRelease)
