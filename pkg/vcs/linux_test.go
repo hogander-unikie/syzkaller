@@ -103,6 +103,10 @@ func createTestLinuxRepo(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = os.MkdirAll(baseDir+"/scripts/gcc-plugins", 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Copy stubbed scripts used by config bisect.
 	err = osutil.CopyFile("testdata/linux/config-bisect.pl",
