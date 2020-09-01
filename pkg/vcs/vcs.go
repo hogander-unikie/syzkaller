@@ -119,7 +119,7 @@ type Bisecter interface {
 
 	IsRelease(commit string) (bool, error)
 
-	EnvForCommit(binDir, commit string, kernelConfig []byte) (*BisectEnv, error)
+	EnvForCommit(binDir, cCache, commit string, kernelConfig []byte) (*BisectEnv, error)
 }
 
 type ConfigMinimizer interface {
@@ -147,6 +147,7 @@ const (
 
 type BisectEnv struct {
 	Compiler     string
+	Ccache       string
 	KernelConfig []byte
 }
 

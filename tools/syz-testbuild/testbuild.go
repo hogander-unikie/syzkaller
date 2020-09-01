@@ -120,7 +120,7 @@ func main() {
 }
 
 func test(repo vcs.Repo, bisecter vcs.Bisecter, kernelConfig []byte, env instance.Env, com *vcs.Commit) {
-	bisectEnv, err := bisecter.EnvForCommit(*flagBisectBin, com.Hash, kernelConfig)
+	bisectEnv, err := bisecter.EnvForCommit(*flagBisectBin, "", com.Hash, kernelConfig)
 	if err != nil {
 		fail(err)
 	}
@@ -128,7 +128,7 @@ func test(repo vcs.Repo, bisecter vcs.Bisecter, kernelConfig []byte, env instanc
 	if err := build.Clean(*flagOS, *flagArch, vmType, *flagKernelSrc); err != nil {
 		fail(err)
 	}
-	_, _, err = env.BuildKernel(bisectEnv.Compiler, *flagUserspace,
+	_, _, err = env.BuildKernel(bisectEnv.Compiler, "", *flagUserspace,
 		*flagKernelCmdline, *flagKernelSysctl, bisectEnv.KernelConfig)
 	if err != nil {
 		if verr, ok := err.(*osutil.VerboseError); ok {

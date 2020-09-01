@@ -69,7 +69,12 @@ func (linux) buildKernel(params *Params) error {
 	case "ppc64le":
 		target = "zImage"
 	}
-	if err := runMake(params.KernelDir, target, "CC="+params.Compiler); err != nil {
+
+	cc_param := params.Compiler
+	if len(params.Ccache) != 0 {
+		cc_param = params.Ccache + " " + cc_param
+	}
+	if err := runMake(params.KernelDir, target, "CC="+cc_param); err != nil {
 		return err
 	}
 	vmlinux := filepath.Join(params.KernelDir, "vmlinux")

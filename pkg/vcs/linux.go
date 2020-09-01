@@ -104,7 +104,7 @@ func gitReleaseTagToInt(tag string) uint64 {
 	return v1*1e6 + v2*1e3 + v3
 }
 
-func (ctx *linux) EnvForCommit(binDir, commit string, kernelConfig []byte) (*BisectEnv, error) {
+func (ctx *linux) EnvForCommit(binDir, cCache, commit string, kernelConfig []byte) (*BisectEnv, error) {
 	tagList, err := ctx.previousReleaseTags(commit, true)
 	if err != nil {
 		return nil, err
@@ -113,9 +113,11 @@ func (ctx *linux) EnvForCommit(binDir, commit string, kernelConfig []byte) (*Bis
 	for _, tag := range tagList {
 		tags[tag] = true
 	}
+
 	env := &BisectEnv{
 		Compiler:     filepath.Join(binDir, "gcc-"+linuxCompilerVersion(tags), "bin", "gcc"),
-		KernelConfig: linuxAlterConfigs(kernelConfig, tags),
+		Ccache:       cCache,
+		KernelConfig: linuxAlterConfigs(kernelConfig, tags, cCache != ""),
 	}
 	// v4.0 doesn't boot with our config nor with defconfig, it halts on an interrupt in x86_64_start_kernel.
 	if !tags["v4.1"] {
@@ -138,7 +140,7 @@ func linuxCompilerVersion(tags map[string]bool) string {
 	}
 }
 
-func linuxAlterConfigs(config []byte, tags map[string]bool) []byte {
+func linuxAlterConfigs(config []byte, tags map[string]bool, ccache bool) []byte {
 	disable := map[string]string{
 		// 5.2 has CONFIG_SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING which allows to test tomoyo better.
 		// This config also enables CONFIG_SECURITY_TOMOYO_OMIT_USERSPACE_LOADER
@@ -182,6 +184,13 @@ func linuxAlterConfigs(config []byte, tags map[string]bool) []byte {
 		// which makes bisections take weeks.
 		"CONFIG_DEBUG_KOBJECT": "disable-always",
 	}
+
+	// If ccache is enabled ensure CONFIG_GCC_PLUGIN_RANDSTRUCT is disabled.
+	// See Documentation/kbuild/reproducible-builds.rst
+	if ccache {
+		disable["CONFIG_GCC_PLUGIN_RANDSTRUCT"] = "disable-always"
+	}
+
 	for cfg, tag := range disable {
 		if !tags[tag] {
 			config = bytes.Replace(config, []byte(cfg+"=y"), []byte("# "+cfg+" is not set"), -1)
@@ -352,7 +361,7 @@ func (ctx *linux) prepareConfigBisectEnv(kernelConfig, kernelBaselineConfig stri
 	}
 
 	// Call EnvForCommit if some options needs to be adjusted.
-	bisectEnv, err := ctx.EnvForCommit("", current.Hash, original)
+	bisectEnv, err := ctx.EnvForCommit("", "", current.Hash, original)
 	if err != nil {
 		return fmt.Errorf("failed create commit environment: %v", err)
 	}
@@ -361,7 +370,7 @@ func (ctx *linux) prepareConfigBisectEnv(kernelConfig, kernelBaselineConfig stri
 	}
 
 	// Call EnvForCommit again if some options needs to be adjusted in baseline.
-	bisectEnv, err = ctx.EnvForCommit("", current.Hash, baseline)
+	bisectEnv, err = ctx.EnvForCommit("", "", current.Hash, baseline)
 	if err != nil {
 		return fmt.Errorf("failed create commit environment: %v", err)
 	}

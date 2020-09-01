@@ -93,6 +93,7 @@ type Config struct {
 	// GCS path to upload coverage reports from managers (optional).
 	CoverUploadPath string           `json:"cover_upload_path"`
 	BisectBinDir    string           `json:"bisect_bin_dir"`
+	Ccache          string           `json:"ccache"`
 	Managers        []*ManagerConfig `json:"managers"`
 }
 
