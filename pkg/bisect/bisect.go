@@ -61,18 +61,19 @@ type ReproConfig struct {
 }
 
 type env struct {
-	cfg          *Config
-	repo         vcs.Repo
-	bisecter     vcs.Bisecter
-	minimizer    vcs.ConfigMinimizer
-	commit       *vcs.Commit
-	head         *vcs.Commit
-	kernelConfig []byte
-	inst         instance.Env
-	numTests     int
-	startTime    time.Time
-	buildTime    time.Duration
-	testTime     time.Duration
+	cfg           *Config
+	repo          vcs.Repo
+	bisecter      vcs.Bisecter
+	minimizer     vcs.ConfigMinimizer
+	commit        *vcs.Commit
+	head          *vcs.Commit
+	kernelConfig  []byte
+	inst          instance.Env
+	numTests      int
+	startTime     time.Time
+	buildTime     time.Duration
+	testTime      time.Duration
+	disableCCache bool
 }
 
 const NumTests = 10 // number of tests we do per commit
@@ -207,7 +208,8 @@ func (env *env) bisect() (*Result, error) {
 
 	env.commit = com
 	env.kernelConfig = cfg.Kernel.Config
-	testRes, err := env.test()
+
+	testRes, err := env.testOriginalCommit()
 	if err != nil {
 		return nil, err
 	} else if testRes.verdict != vcs.BisectBad {
@@ -284,6 +286,28 @@ func (env *env) bisect() (*Result, error) {
 		res.NoopChange = noopChange
 	}
 	return res, nil
+}
+
+func (env *env) testOriginalCommit() (*testResult, error) {
+	var testRes *testResult
+	var err error
+	for {
+		testRes, err = env.test()
+		if err != nil {
+			return nil, err
+		} else if testRes.verdict == vcs.BisectBad {
+			break
+		}
+
+		// Recheck original commit without ccache. We are disabling CONFIG_HAVE_GCC_PLUGINS
+		// and original crash might be dependent on that
+		if !env.disableCCache {
+			env.disableCCache = true
+			continue
+		}
+		break
+	}
+	return testRes, nil
 }
 
 func (env *env) minimizeConfig() (*testResult, error) {
@@ -434,7 +458,13 @@ func (env *env) build() (*vcs.Commit, string, error) {
 		return nil, "", err
 	}
 
-	bisectEnv, err := env.bisecter.EnvForCommit(env.cfg.BinDir, env.cfg.Ccache, current.Hash, env.kernelConfig)
+	cCache := env.cfg.Ccache
+	if env.disableCCache {
+		env.log("ccache is disabled, not using it")
+		cCache = ""
+	}
+
+	bisectEnv, err := env.bisecter.EnvForCommit(env.cfg.BinDir, cCache, current.Hash, env.kernelConfig)
 	if err != nil {
 		return nil, "", err
 	}
@@ -449,7 +479,7 @@ func (env *env) build() (*vcs.Commit, string, error) {
 		return nil, "", fmt.Errorf("kernel clean failed: %v", err)
 	}
 	kern := &env.cfg.Kernel
-	_, kernelSign, err := env.inst.BuildKernel(bisectEnv.Compiler, bisectEnv.Ccache, kern.Userspace,
+	_, kernelSign, err := env.inst.BuildKernel(bisectEnv.Compiler, cCache, kern.Userspace,
 		kern.Cmdline, kern.Sysctl, bisectEnv.KernelConfig)
 	if kernelSign != "" {
 		env.log("kernel signature: %v", kernelSign)
