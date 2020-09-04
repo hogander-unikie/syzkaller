@@ -25,7 +25,9 @@ type testEnv struct {
 	r vcs.Repo
 	// Kernel config used in "build"
 	config string
-	test   BisectionTest
+	// Ccache hides the crash.
+	cCacheHides bool
+	test        BisectionTest
 }
 
 func (env *testEnv) BuildSyzkaller(repo, commit string) error {
@@ -37,6 +39,16 @@ func (env *testEnv) BuildKernel(compilerBin, cCache, userspaceDir, cmdlineFile, 
 	commit := env.headCommit()
 	configHash := hash.String(kernelConfig)
 	kernelSign := fmt.Sprintf("%v-%v", commit, configHash)
+
+	env.cCacheHides = false
+
+	if cCache != "" {
+		if cCache == "ccache-does-not-reproduce" {
+			env.cCacheHides = true
+		}
+
+		kernelSign = cCache + "-" + kernelSign
+	}
 	if commit >= env.test.sameBinaryStart && commit <= env.test.sameBinaryEnd {
 		kernelSign = "same-sign-" + configHash
 	}
@@ -53,7 +65,8 @@ func (env *testEnv) Test(numVMs int, reproSyz, reproOpts, reproC []byte) ([]erro
 		env.config == "baseline-skip" {
 		return nil, fmt.Errorf("broken build")
 	}
-	if (env.config == "baseline-repro" || env.config == "new-minimized-config" || env.config == "original config") &&
+	if !env.cCacheHides && (env.config == "baseline-repro" || env.config == "new-minimized-config" ||
+		env.config == "original config") &&
 		(!env.test.fix && commit >= env.test.culprit || env.test.fix &&
 			commit < env.test.culprit) {
 		return crashErrors(numVMs, "crash occurs"), nil
@@ -117,8 +130,9 @@ func runBisection(t *testing.T, baseDir string, test BisectionTest) (*Result, er
 	}
 	trace := new(bytes.Buffer)
 	cfg := &Config{
-		Fix:   test.fix,
-		Trace: trace,
+		Fix:    test.fix,
+		Trace:  trace,
+		Ccache: test.cCache,
 		Manager: mgrconfig.Config{
 			TargetOS:     "test",
 			TargetVMArch: "64",
@@ -163,6 +177,7 @@ type BisectionTest struct {
 	culprit         int
 	baselineConfig  string
 	resultingConfig string
+	cCache          string
 }
 
 var bisectionTests = []BisectionTest{
@@ -234,6 +249,14 @@ var bisectionTests = []BisectionTest{
 		startCommit:    905,
 		baselineConfig: "minimize-fails",
 		expectErr:      true,
+	},
+	{
+		name:        "cause-finds-cause-ccache-fails",
+		startCommit: 905,
+		cCache:      "ccache-does-not-reproduce",
+		commitLen:   1,
+		expectRep:   true,
+		culprit:     602,
 	},
 	{
 		name:            "config-minimize-same-hash",
