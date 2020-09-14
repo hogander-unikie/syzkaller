@@ -12,6 +12,7 @@ SYZKALLER_REPOSITORY=https://github.com/hogander-unikie/syzkaller
 SYZKALLER_BRANCH=flaky_flag
 SYZKALLER_REPROS_REPOSITORY=https://github.com/hogander-unikie/syzkaller-repros.git
 SYZKALLER_REPROS_BRANCH=bisect
+KERNEL_REPOSITORY=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 KERNEL_BRANCH=v4.19.59
 WITHOUT_CONFIG_BISECT_ONLY=false
 WITH_CONFIG_BISECT_ONLY=true
@@ -52,10 +53,10 @@ for reproducer in $REPRODUCER_LIST
 do
     if [ $WITHOUT_CONFIG_BISECT_ONLY != "true" ]
     then
-	./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository  https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git --kernel_branch $KERNEL_BRANCH --chroot ./chroot  --baseline_config $BASELINE_CONFIG --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --syzkaller_repository $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_with_config_bisect ; mv ./out_with_config_bisect/syz-bisect.log ./out_with_config_bisect/$reproducer.log
+	./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository $KERNEL_REPOSITORY --kernel_branch $KERNEL_BRANCH --chroot ./chroot  --baseline_config $BASELINE_CONFIG --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --syzkaller_repository $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_with_config_bisect ; mv ./out_with_config_bisect/syz-bisect.log ./out_with_config_bisect/$reproducer.log
     fi
     if [ $WITH_CONFIG_BISECT_ONLY != true ]
     then
-	./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository  https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git --kernel_branch $KERNEL_BRANCH --chroot ./chroot --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --syzkaller_repository  $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_without_config_bisect ; mv ./out_without_config_bisect/syz-bisect.log ./out_without_config_bisect/$reproducer.log
+	./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository $KERNEL_REPOSITORY --kernel_branch $KERNEL_BRANCH --chroot ./chroot --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --syzkaller_repository  $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_without_config_bisect ; mv ./out_without_config_bisect/syz-bisect.log ./out_without_config_bisect/$reproducer.log
     fi
 done
