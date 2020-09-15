@@ -5,13 +5,13 @@
 ###       password. I.e. add "timestamp_timeout=-1" using "sudo visudo"
 ###
 
-BASELINE_CONFIG=$PWD/baseline.config
+BASELINE_CONFIG=$PWD/barebones.config
 REPRODUCER_CONFIG=$PWD/config
 GO_VERSION=1.14.6
 SYZKALLER_REPOSITORY=https://github.com/hogander-unikie/syzkaller
 SYZKALLER_BRANCH=syzbot_baseline
 SYZKALLER_REPROS_REPOSITORY=https://github.com/hogander-unikie/syzkaller-repros.git
-SYZKALLER_REPROS_BRANCH=bisect
+SYZKALLER_REPROS_BRANCH=bisect_ccache
 KERNEL_BRANCH=next-20200909
 WITHOUT_CONFIG_BISECT_ONLY=false
 WITH_CONFIG_BISECT_ONLY=false
