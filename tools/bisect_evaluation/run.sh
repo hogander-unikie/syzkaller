@@ -5,8 +5,8 @@
 ###       password. I.e. add "timestamp_timeout=-1" using "sudo visudo"
 ###
 
-BASELINE_CONFIG=$PWD/baseline.config
-REPRODUCER_CONFIG=$PWD/config
+BASELINE_CONFIG="`realpath $PWD/baseline.config`"
+REPRODUCER_CONFIG="`realpath $PWD/config`"
 GO_VERSION=1.14.6
 SYZKALLER_REPOSITORY=https://github.com/hogander-unikie/syzkaller
 SYZKALLER_BRANCH=flaky_flag
@@ -53,7 +53,10 @@ for reproducer in $REPRODUCER_LIST
 do
     if [ $WITHOUT_CONFIG_BISECT_ONLY != "true" ]
     then
-	./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository $KERNEL_REPOSITORY --kernel_branch $KERNEL_BRANCH --chroot ./chroot  --baseline_config $BASELINE_CONFIG --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --syzkaller_repository $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_with_config_bisect ; mv ./out_with_config_bisect/syz-bisect.log ./out_with_config_bisect/$reproducer.log
+	for baseline in $BASELINE_CONFIGS
+	do
+	    ./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository $KERNEL_REPOSITORY --kernel_branch $KERNEL_BRANCH --chroot ./chroot  --baseline_config $baseline --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --syzkaller_repository $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_with_config_bisect ; mv ./out_with_config_bisect/syz-bisect.log ./out_with_config_bisect/$reproducer.`basename $baseline`.log
+	done
     fi
     if [ $WITH_CONFIG_BISECT_ONLY != true ]
     then
