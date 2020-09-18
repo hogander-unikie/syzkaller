@@ -47,7 +47,7 @@ tar -xvf bisect_bin.tar.gz
 sudo apt-get install libmpfr6
 sudo apt-get install grub-efi
 
-ln -s /usr/lib/x86_64-linux-gnu/libmpfr.so.6 hogander@hogander-HP-ZBook-15-G5:/usr/lib$ ln -s /usr/lib/x86_64-linux-gnu/libmpfr.so.4
+ln -s /usr/lib/x86_64-linux-gnu/libmpfr.so.6 /usr/lib/x86_64-linux-gnu/libmpfr.so.4
 
 for reproducer in $REPRODUCER_LIST
 do
