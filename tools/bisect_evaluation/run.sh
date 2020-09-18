@@ -1,9 +1,10 @@
 #!/bin/bash
-
-###
-### NOTE: Syz-bisect is using sudo. Before running this script ensure "sudo" is not asking for
-###       password. I.e. add "timestamp_timeout=-1" using "sudo visudo"
-###
+# Copyright 2020 syzkaller project authors. All rights reserved.
+# Use of this source code is governed by Apache 2 LICENSE that can be found in the LICENSE file.
+#
+# NOTE: Syz-bisect is using sudo. Before running this script ensure "sudo" is not asking for
+# password. I.e. add "timestamp_timeout=-1" using "sudo visudo"
+#
 
 BASELINE_CONFIG="`realpath $PWD/baseline.config`"
 REPRODUCER_CONFIG="`realpath $PWD/config`"
