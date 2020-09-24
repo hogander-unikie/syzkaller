@@ -73,7 +73,7 @@ do
     then
 	if [ $WITHOUT_CCACHE_ONLY != "true" ]
 	then
-	    ./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository $KERNEL_REPOSITORYw --kernel_branch $KERNEL_BRANCH --chroot ./chroot --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --ccache /usr/bin/ccache --syzkaller_repository  $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_without_config_bisect_with_ccache ; mv ./out_without_config_bisect_with_ccache/syz-bisect.log ./out_without_config_bisect_with_ccache/$reproducer.log
+	    ./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository $KERNEL_REPOSITORY --kernel_branch $KERNEL_BRANCH --chroot ./chroot --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --ccache /usr/bin/ccache --syzkaller_repository  $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_without_config_bisect_with_ccache ; mv ./out_without_config_bisect_with_ccache/syz-bisect.log ./out_without_config_bisect_with_ccache/$reproducer.log
 	fi
 	if [ $WITH_CCACHE_ONLY != "true" ]
 	then
