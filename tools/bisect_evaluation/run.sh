@@ -61,11 +61,11 @@ do
 	do
 	    if [ $WITHOUT_CCACHE_ONLY != "true" ]
 	    then
-		./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository $KERNEL_REPOSITORY --kernel_branch $KERNEL_BRANCH --chroot ./chroot  --baseline_config $baseline --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --ccache /usr/bin/ccache --syzkaller_repository $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_with_config_bisect_with_ccache
+		./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository $KERNEL_REPOSITORY --kernel_branch $KERNEL_BRANCH --chroot ./chroot  --baseline_config $baseline --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --ccache /usr/bin/ccache --syzkaller_repository $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_with_config_bisect_with_ccache/`basename $baseline`
 	    fi
 	    if [ $WITH_CCACHE_ONLY != "true" ]
 	    then
-		./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository $KERNEL_REPOSITORY --kernel_branch $KERNEL_BRANCH --chroot ./chroot  --baseline_config $baseline --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --syzkaller_repository $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_with_config_bisect_without_ccache
+		./syzkaller-repros/bisect.py --reproducer ./syzkaller-repros/linux/$reproducer.c  --kernel_repository $KERNEL_REPOSITORY --kernel_branch $KERNEL_BRANCH --chroot ./chroot  --baseline_config $baseline --reproducer_config $REPRODUCER_CONFIG --bisect_bin ./bisect_bin --syzkaller_repository $SYZKALLER_REPOSITORY --syzkaller_branch $SYZKALLER_BRANCH --output ./out_with_config_bisect_without_ccache/`basename $baseline`
 	    fi
 	done
     fi
