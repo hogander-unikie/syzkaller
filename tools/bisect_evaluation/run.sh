@@ -63,7 +63,7 @@ do
 	do
 	    if [ $WITHOUT_CCACHE_ONLY != "true" ]
 	    then
-		$BISECT_COMMON -baseline_config $baseline --ccache /usr/bin/ccache --output ./out_with_config_bisect_with_ccache/`basename $baseline`
+		$BISECT_COMMON --baseline_config $baseline --ccache /usr/bin/ccache --output ./out_with_config_bisect_with_ccache/`basename $baseline`
 	    fi
 	    if [ $WITH_CCACHE_ONLY != "true" ]
 	    then
