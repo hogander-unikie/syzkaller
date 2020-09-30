@@ -24,7 +24,7 @@ WITHOUT_CCACHE_ONLY=false
 REPRODUCER_LIST="68958b9d3651e09f0651b08f039f40c415fd02e6 703f732a1f1f5e1d8314bb1a98eca20309420116 ce692a3aa13e00e335e090be7846c6eb60ddff7a 61318630f216fec89e9be95e621470084000d7bc 9b519f4f0bcaeb000ba93389eda00310a6020abe be39d3abb5842e873d15d019b19f5ebef17c604a 76868b4c83962eefbf8015f01aeb9da4189fc25e 55fc56e39caaf4f597fdbf388108892196d55f3f ee7cf202a47281cda2e5a76bd1ba0683a10c2a65 4b61862ab93380cf84d66e09596ff3cbc3bc5341 fb7ed6c3b2a69045e6b84a4ef30816f0f48791a9"
 
 sudo apt-get install golang-go
-go get golang.org/dl/go1.14.6
+go get golang.org/dl/go$GO_VERSION
 ~/go/bin/go$GO_VERSION download
 export PATH=~/sdk/go$GO_VERSION/bin:$PATH
 go get -u -d github.com/google/syzkaller/...
@@ -41,18 +41,28 @@ popd
 export PATH=~/go/src/github.com/google/syzkaller/bin:$PATH
 
 git clone $SYZKALLER_REPROS_REPOSITORY
-pushd syzkaller-repros
-git checkout $SYZKALLER_REPROS_BRANCH
-popd
-~/go/src/github.com/google/syzkaller/tools/create-image.sh
-wget https://storage.googleapis.com/syzkaller/bisect_bin.tar.gz
-tar -xvf bisect_bin.tar.gz
+git -C syzkaller-repros fetch origin
+git -C syzkaller-repros checkout origin/$SYZKALLER_REPROS_BRANCH
+
+if [ ! -d chroot ]
+then
+    ~/go/src/github.com/google/syzkaller/tools/create-image.sh
+fi
+
+if [ ! -d bisect_bin ]
+then
+    wget https://storage.googleapis.com/syzkaller/bisect_bin.tar.gz
+    tar -xvf bisect_bin.tar.gz
+fi
 
 sudo apt-get install libmpfr6
 sudo apt-get install grub-efi
 sudo apt-get install ccache
 
-ln -s /usr/lib/x86_64-linux-gnu/libmpfr.so.6 /usr/lib/x86_64-linux-gnu/libmpfr.so.4
+if [ ! -f /usr/lib/x86_64-linux-gnu/libmpfr.so.4 ]
+then
+    ln -s /usr/lib/x86_64-linux-gnu/libmpfr.so.6 /usr/lib/x86_64-linux-gnu/libmpfr.so.4
+fi
 
 for reproducer in $REPRODUCER_LIST
 do
