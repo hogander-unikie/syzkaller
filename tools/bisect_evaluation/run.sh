@@ -6,7 +6,7 @@
 # password. I.e. add "timestamp_timeout=-1" using "sudo visudo"
 #
 
-BASELINE_CONFIG="`realpath $PWD/baseline.config`"
+BASELINE_CONFIGS="`realpath $PWD/baseline.config`"
 REPRODUCER_CONFIG="`realpath $PWD/config`"
 GO_VERSION=1.14.6
 SYZKALLER_REPOSITORY=https://github.com/hogander-unikie/syzkaller
@@ -34,6 +34,7 @@ git -C ~/go/src/github.com/google/syzkaller fetch bisect-remote
 git -C ~/go/src/github.com/google/syzkaller checkout bisect-remote/$SYZKALLER_BRANCH
 
 pushd ~/go/src/github.com/google/syzkaller
+make clean
 make
 GOOS=linux GOARCH=amd64 go build "-ldflags=-s -w -X github.com/google/syzkaller/prog.GitRevision=`git -C ~/go/src/github.com/google/syzkaller rev-parse HEAD` -X 'github.com/google/syzkaller/prog.gitRevisionDate=`git -C ~/go/src/github.com/google/syzkaller log -n 1 --format="%ad"`'" -o ./bin/syz-bisect github.com/google/syzkaller/tools/syz-bisect
 popd
