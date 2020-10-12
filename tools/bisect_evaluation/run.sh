@@ -6,11 +6,11 @@
 # password. I.e. add "timestamp_timeout=-1" using "sudo visudo"
 #
 
-BASELINE_CONFIGS="`realpath ~/go/src/github.com/google/syzkaller/dashboard/config/upstream-kasan-barebones.config`"
+BASELINE_CONFIGS="`realpath ~/go/src/github.com/google/syzkaller/dashboard/config/upstream-kasan.config.baseline`"
 REPRODUCER_CONFIG="`realpath ~/go/src/github.com/google/syzkaller/dashboard/config/upstream-kasan.config`"
 GO_VERSION=1.14.6
 SYZKALLER_REPOSITORY=https://github.com/hogander-unikie/syzkaller
-SYZKALLER_BRANCH=disable_initrd_evaluation_2
+SYZKALLER_BRANCH=reuse_testresults_evaluation
 SYZKALLER_REPROS_REPOSITORY=https://github.com/hogander-unikie/syzkaller-repros.git
 SYZKALLER_REPROS_BRANCH=bisect
 KERNEL_REPOSITORY=git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
