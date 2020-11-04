@@ -75,6 +75,7 @@ type env struct {
 	startTime    time.Time
 	buildTime    time.Duration
 	testTime     time.Duration
+	flaky        bool
 }
 
 const NumTests = 10 // number of tests we do per commit
@@ -159,6 +160,9 @@ func runImpl(cfg *Config, repo vcs.Repo, inst instance.Env) (*Result, error) {
 	}
 	start := time.Now()
 	res, err := env.bisect()
+	if env.flaky {
+		env.log("Reproducer flagged being flaky")
+	}
 	env.log("revisions tested: %v, total time: %v (build: %v, test: %v)",
 		env.numTests, time.Since(start), env.buildTime, env.testTime)
 	if err != nil {
@@ -460,25 +464,51 @@ func (env *env) test() (*testResult, error) {
 		}
 		return res, nil
 	}
-	testStart := time.Now()
-	results, err := env.inst.Test(NumTests, cfg.Repro.Syz, cfg.Repro.Opts, cfg.Repro.C)
-	env.testTime += time.Since(testStart)
-	if err != nil {
-		env.log("failed: %v", err)
-		return res, nil
+
+	// Increase number of tests in case reproducer is flaky.
+	flakyNumTests := 0
+	if env.flaky {
+		flakyNumTests = NumTests
 	}
-	bad, good, rep := env.processResults(current, results)
-	res.rep = rep
-	res.verdict = vcs.BisectSkip
-	if bad != 0 {
-		res.verdict = vcs.BisectBad
-	} else if NumTests-good-bad > NumTests/3*2 {
-		// More than 2/3 of instances failed with infrastructure error,
-		// can't reliably tell that the commit is good.
-		res.verdict = vcs.BisectSkip
-	} else if good != 0 {
-		res.verdict = vcs.BisectGood
+	// First test for original commit: We repeat if crash is not reproduced.
+	numOfIterations := 1
+	if env.numTests == 1 {
+		numOfIterations = 2
 	}
+	verdict := vcs.BisectGood
+	for verdict == vcs.BisectGood && numOfIterations > 0 {
+		testStart := time.Now()
+
+		results, err := env.inst.Test(NumTests+flakyNumTests, cfg.Repro.Syz, cfg.Repro.Opts, cfg.Repro.C)
+		env.testTime += time.Since(testStart)
+		if err != nil {
+			env.log("failed: %v", err)
+			return res, nil
+		}
+		bad, good, rep := env.processResults(current, results)
+		res.rep = rep
+		verdict = vcs.BisectSkip
+		if bad != 0 {
+			verdict = vcs.BisectBad
+			if !env.flaky && bad < good {
+				env.log("reproducer seems to be flaky")
+				env.flaky = true
+			}
+		} else if len(results)-good-bad > NumTests/3*2 {
+			// More than 2/3 of instances failed with infrastructure error,
+			// can't reliably tell that the commit is good.
+			verdict = vcs.BisectSkip
+		} else if good != 0 {
+			verdict = vcs.BisectGood
+			numOfIterations = numOfIterations - 1
+			// Bump up number of tests on last retry.
+			if numOfIterations == 1 {
+				env.log("Original commit not crashing, bump up number of tests and retry")
+				flakyNumTests = NumTests
+			}
+		}
+	}
+	res.verdict = verdict
 	return res, nil
 }
 
