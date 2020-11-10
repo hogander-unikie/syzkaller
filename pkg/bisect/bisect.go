@@ -5,11 +5,11 @@ package bisect
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 	"time"
 
 	"github.com/google/syzkaller/pkg/build"
+	"github.com/google/syzkaller/pkg/debugtracer"
 	"github.com/google/syzkaller/pkg/hash"
 	"github.com/google/syzkaller/pkg/instance"
 	"github.com/google/syzkaller/pkg/mgrconfig"
@@ -20,7 +20,7 @@ import (
 )
 
 type Config struct {
-	Trace     io.Writer
+	Trace     debugtracer.DebugTracer
 	Fix       bool
 	BinDir    string
 	Ccache    string
@@ -571,5 +571,5 @@ func checkConfig(cfg *Config) error {
 }
 
 func (env *env) log(msg string, args ...interface{}) {
-	fmt.Fprintf(env.cfg.Trace, msg+"\n", args...)
+	env.cfg.Trace.Log(msg, args...)
 }
